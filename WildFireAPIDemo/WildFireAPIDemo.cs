@@ -9,14 +9,14 @@ namespace WildFireAPIDemo
         public static void Main(string[] args)
         {
             // Initialize Demo Variables
-            var apiKey = "put_your_key_here";
-            var sha256 = "afe6b95ad95bc689c356f34ec8d9094c495e4af57c932ac413b65ef132063acc";
-            string filePath = @"c:\test.doc"; // Change this to the desired file
-            string link = @"https://www.paloaltonetworks.com"; // Change this to the desired target
+            var apiKey = "put your api key here";
+            var sha256 = "afe6b95ad95bc689c356f34ec8d9094c495e4af57c932ac413b65ef132063acc"; // Change to the desired hash
+            string filePath = @"c:\test.doc"; // Change to the desired file
+            string link = @"https://www.paloaltonetworks.com"; // Change to the desired target
 
             // Initialize Application Variables
             HttpClient httpClient = new HttpClient(); // Using a shared client for simplicity and speed
-            httpClient.BaseAddress = new Uri("https://wildfire.paloaltonetworks.com/"); // May need to be changed for different regions
+            httpClient.BaseAddress = new Uri("https://wildfire.paloaltonetworks.com/"); // May need to change for a different region
             var apiEndpointGetVerdict = "publicapi/get/verdict";
             var apiResultKeyGetVerdict = "get-verdict-info";
             var apiEndpointSubmitFile = "publicapi/submit/file";
@@ -38,7 +38,8 @@ namespace WildFireAPIDemo
         }
 
 
-        public static async Task<Dictionary<string, object>> CallAPIEndpoint(HttpClient httpClient, string apiEndpoint, string apiResultKey, MultipartFormDataContent multipartFormDataContent)
+        public static async Task<Dictionary<string, object>> CallAPIEndpoint(
+            HttpClient httpClient, string apiEndpoint, string apiResultKey, MultipartFormDataContent multipartFormDataContent)
         {
             //Send the API key and the form containing the data
             var apiResponse = await httpClient.PostAsync(apiEndpoint, multipartFormDataContent);
@@ -58,12 +59,12 @@ namespace WildFireAPIDemo
                 // Convert the XML response to JSON
                 var jsonResponse = JsonConvert.SerializeXmlNode(xmlResponse);
 
-                // Convert the JSON to a dictionary
-                Dictionary<string, dynamic> dictResponse =
-                    JsonConvert.DeserializeObject<Dictionary<string, object>>(jsonResponse);
-
-                // Return the final dictionary containing the salient data by removing the first-level and second level keys
-                return JsonConvert.DeserializeObject<Dictionary<string, object>>(dictResponse["wildfire"][apiResultKey].ToString());
+                // Convert the JSON to a Dictionary<string, dynamic>,
+                // remove the first-level and second level keys,
+                // and return a Dictionary<string, object> containing the salient data
+                return JsonConvert.DeserializeObject<Dictionary<string, object>>(
+                    JsonConvert.DeserializeObject<Dictionary<string, dynamic>>(jsonResponse)
+                        ["wildfire"][apiResultKey].ToString());
             }
             else
                 // Return an empty dictionary if the API call failed
@@ -82,7 +83,8 @@ namespace WildFireAPIDemo
         }
 
 
-        public static async Task<Dictionary<string, object>> WildFireAPISubmitFile(HttpClient httpClient, string apiEndpoint, string apiResultKey, string apiKey, string filePath)
+        public static async Task<Dictionary<string, object>> WildFireAPISubmitFile(
+            HttpClient httpClient, string apiEndpoint, string apiResultKey, string apiKey, string filePath)
         {
             // Initialize Variables
             var fileName = Path.GetFileName(filePath);
@@ -106,7 +108,8 @@ namespace WildFireAPIDemo
         }
 
 
-        public static async Task<Dictionary<string, object>> WildFireAPIGetVerdict(HttpClient httpClient, string apiEndpoint, string apiResultKey, string apiKey, string sha256)
+        public static async Task<Dictionary<string, object>> WildFireAPIGetVerdict(
+            HttpClient httpClient, string apiEndpoint, string apiResultKey, string apiKey, string sha256)
         {
             // Initialize Variables
             var multipartFormDataContent = new MultipartFormDataContent();
@@ -122,7 +125,8 @@ namespace WildFireAPIDemo
         }
 
 
-        public static async Task<Dictionary<string, object>> WildFireAPISubmitLink(HttpClient httpClient, string apiEndpoint, string apiResultKey, string apiKey, string link)
+        public static async Task<Dictionary<string, object>> WildFireAPISubmitLink(
+            HttpClient httpClient, string apiEndpoint, string apiResultKey, string apiKey, string link)
         {
             // Initialize Variables
             var multipartFormDataContent = new MultipartFormDataContent();
