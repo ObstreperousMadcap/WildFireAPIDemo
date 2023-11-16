@@ -8,38 +8,31 @@ namespace WildFireAPIDemo
     {
         public static void Main(string[] args)
         {
-            // ********************
-            // Demo Variables
-            // ********************
-            var apiKey = "put_a_key_here";
-            var fileSHA256 = "put_a_hash_here";
-            string filePath = @"put_a_file_path_and_name_here";
-            // ********************
+            // Initialize Demo Variables
+            var apiKey = "your_api_key_here";
+            var sha256 = "afe6b95ad95bc689c356f34ec8d9094c495e4af57c932ac413b65ef132063acc";
+            string filePath = @"c:\test.doc";
+            string link = @"https://www.paloaltonetworks.com";
 
-            // ********************
-            // Standard Variables
-            // ********************
+            // Initialize Application Variables
             HttpClient httpClient = new HttpClient();
             httpClient.BaseAddress = new Uri("https://wildfire.paloaltonetworks.com/");
             var apiEndpointGetVerdict = "publicapi/get/verdict";
             var apiResultKeyGetVerdict = "get-verdict-info";
             var apiEndpointSubmitFile = "publicapi/submit/file";
             var apiResultKeySubmitFile = "upload-file-info";
-            Dictionary<string, object> dictParsedResponse = new Dictionary<string, object>();
-            // ********************
-
+            var apiEndpointSubmitLink = "publicapi/submit/link";
+            var apiResultKeySubmitLink = "submit-link-info";
+            var dictParsedResponse = new Dictionary<string, object>(); // Unnecessary to initialize, but keeping it for future use.
+            
             // ********************
             // Get a Verdict
             // ********************
-            dictParsedResponse = WildFireAPIGetVerdict(httpClient, apiEndpointGetVerdict, apiResultKeyGetVerdict, apiKey, fileSHA256).Result;
+            dictParsedResponse = WildFireAPIGetVerdict(httpClient, apiEndpointGetVerdict, apiResultKeyGetVerdict, apiKey, sha256).Result;
             if (dictParsedResponse.Keys.Count > 0)
-            {
                 DisplayAPIResponse("WildFire API " + apiEndpointGetVerdict + " Results", dictParsedResponse);
-            }
             else
-            {
                 Console.WriteLine(apiEndpointGetVerdict + " failed.");
-            }
             // ********************
 
             // ********************
@@ -47,40 +40,38 @@ namespace WildFireAPIDemo
             // ********************
             dictParsedResponse = WildFireAPISubmitFile(httpClient, apiEndpointSubmitFile, apiResultKeySubmitFile, apiKey, filePath).Result;
             if (dictParsedResponse.Keys.Count > 0)
-            {
                 DisplayAPIResponse("WildFire API " + apiEndpointSubmitFile + " Results", dictParsedResponse);
-            }
             else
-            {
                 Console.WriteLine(apiEndpointSubmitFile + " failed.");
-            }
+            // ********************
+
+            // ********************
+            // Submit a Link
+            // ********************
+            dictParsedResponse = WildFireAPISubmitLink(httpClient, apiEndpointSubmitLink, apiResultKeySubmitLink, apiKey, link).Result;
+            if (dictParsedResponse.Keys.Count > 0)
+                DisplayAPIResponse("WildFire API " + apiEndpointSubmitLink + " Results", dictParsedResponse);
+            else
+                Console.WriteLine(apiEndpointSubmitLink + " failed.");
             // ********************
         }
 
 
         public static Dictionary<string, object> ParseAPIXMLResponse(XmlDocument xmlResponse, string apiResultKey)
         {
-            Dictionary<string, object> dictParsedResponse = new Dictionary<string, object>();
-
             // Remove the XML Declaration so that the remaining content can be converted to JSON
             foreach (XmlNode node in xmlResponse)
-            {
                 if (node.NodeType == XmlNodeType.XmlDeclaration)
-                {
                     xmlResponse.RemoveChild(node);
-                }
-            }
 
             // Convert the XML response to JSON
-            var jsonResponse = Newtonsoft.Json.JsonConvert.SerializeXmlNode(xmlResponse);
+            var jsonResponse = JsonConvert.SerializeXmlNode(xmlResponse);
 
             // Convert the JSON to a dictionary
             Dictionary<string, dynamic> dictResponse = JsonConvert.DeserializeObject<Dictionary<string, object>>(jsonResponse);
 
-            // Create the final dictionary containing the salient data by removing the first-level and second level keys
-            dictParsedResponse = JsonConvert.DeserializeObject<Dictionary<string, object>>(dictResponse["wildfire"][apiResultKey].ToString());
-
-            return dictParsedResponse;
+            // Return the final dictionary containing the salient data by removing the first-level and second level keys
+            return JsonConvert.DeserializeObject<Dictionary<string, object>>(dictResponse["wildfire"][apiResultKey].ToString());
         }
 
 
@@ -90,25 +81,21 @@ namespace WildFireAPIDemo
             Console.WriteLine(outputTitle);
             Console.WriteLine(new string('*', 50));
             foreach (var item in dictParsedResponse)
-            {
                 Console.WriteLine(item.Key + ": " + item.Value);
-            }
             Console.WriteLine(new string('*', 50));
-            return;
         }
 
 
         public static async Task<Dictionary<string, object>> WildFireAPISubmitFile(HttpClient httpClient, string apiEndpoint, string apiResultKey, string apiKey, string filePath)
         {
-            Dictionary<string, object> dictParsedResponse = new Dictionary<string, object>();
-
+            // Initialize Variables
             var fileName = Path.GetFileName(filePath);
             var multipartFormDataContent = new MultipartFormDataContent();
 
             // Add the API key to the form
             multipartFormDataContent.Add(new StringContent(apiKey), name: @"""apikey""");
 
-            // Load and add the file to form
+            // Load and add the file to the form
             var fileStreamContent = new StreamContent(File.OpenRead(filePath));
             fileStreamContent.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
             fileStreamContent.Headers.ContentDisposition = new ContentDispositionHeaderValue("form-data")
@@ -128,27 +115,28 @@ namespace WildFireAPIDemo
                 var xmlResponse = new XmlDocument();
                 xmlResponse.LoadXml(await apiResponse.Content.ReadAsStringAsync());
 
-                // Parse the results to make them usable
-                dictParsedResponse = ParseAPIXMLResponse(xmlResponse, apiResultKey);
+                // Parse the results to make them usable; return the dictionary
+                return ParseAPIXMLResponse(xmlResponse, apiResultKey);
             }
-
-            return dictParsedResponse;
+            else
+                // Return an empty dictionary if the API call failed
+                return new Dictionary<string, object>();
         }
 
 
-        public static async Task<Dictionary<string, object>> WildFireAPIGetVerdict(HttpClient httpClient, string apiEndpoint, string apiResultKey, string apiKey, string fileSHA256)
+        public static async Task<Dictionary<string, object>> WildFireAPIGetVerdict(HttpClient httpClient, string apiEndpoint, string apiResultKey, string apiKey, string sha256)
         {
-            Dictionary<string, object> dictParsedResponse = new Dictionary<string, object>();
+            // Initialize Variables
+            var multipartFormDataContent = new MultipartFormDataContent();
 
-            var queryData = new Dictionary<string, string>
-            {
-                { "apikey", apiKey},
-                { "hash", fileSHA256}
-            };
-            var encodedQueryData = new FormUrlEncodedContent(queryData);
+            // Add the API key to the form
+            multipartFormDataContent.Add(new StringContent(apiKey), name: @"""apikey""");
+
+            // Add the link to the form
+            multipartFormDataContent.Add(new StringContent(sha256), name: @"""hash""") ;
 
             // Send the API key and hash
-            var apiResponse = await httpClient.PostAsync(apiEndpoint, encodedQueryData);
+            var apiResponse = await httpClient.PostAsync(apiEndpoint, multipartFormDataContent);
 
             // Did it work?
             if (apiResponse.IsSuccessStatusCode)
@@ -157,11 +145,43 @@ namespace WildFireAPIDemo
                 var xmlResponse = new XmlDocument();
                 xmlResponse.LoadXml(await apiResponse.Content.ReadAsStringAsync());
 
-                // Parse the results to make them usable
-                dictParsedResponse = ParseAPIXMLResponse(xmlResponse, apiResultKey);
+                // Parse the results to make them usable; return the dictionary
+                return ParseAPIXMLResponse(xmlResponse, apiResultKey);
             }
+            else
+                // Return an empty dictionary if the API call failed
+                return new Dictionary<string, object>();
+        }
 
-            return dictParsedResponse;
+
+        public static async Task<Dictionary<string, object>> WildFireAPISubmitLink(HttpClient httpClient, string apiEndpoint, string apiResultKey, string apiKey, string link)
+        {
+            // Initialize Variables
+            var multipartFormDataContent = new MultipartFormDataContent();
+
+            // Add the API key to the form
+            multipartFormDataContent.Add(new StringContent(apiKey), name: @"""apikey""");
+
+            // Add the link to the form
+            multipartFormDataContent.Add(new StringContent(link), name: @"""link""");
+
+            // Send the API key and hash
+            var apiResponse = await httpClient.PostAsync(apiEndpoint, multipartFormDataContent);
+
+            // Did it work?
+            if (apiResponse.IsSuccessStatusCode)
+            {
+                // Get the results
+                var xmlResponse = new XmlDocument();
+                xmlResponse.LoadXml(await apiResponse.Content.ReadAsStringAsync());
+
+                // Parse the results to make them usable; return the dictionary
+                return ParseAPIXMLResponse(xmlResponse, apiResultKey);
+            }
+            else
+                // Return an empty dictionary if the API call failed
+                return new Dictionary<string, object>();
+
         }
     }
 }
