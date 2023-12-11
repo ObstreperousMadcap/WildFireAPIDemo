@@ -13,19 +13,19 @@
 // OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 
-// To-do
-// Wrap error handling around file access - try/catch
-// Confirm actual text of apiErrorCodes[] - contact WildFire engineering
-// Add support for /get/report/
-// Save results to logfile
-// Add CLI option for different region URL
-// Add CLI option for using submit logfile to obtain verdicts
-// Add CLI option for using submit logfile to obtain reports
-
+/*
+To-Do List 
+ - Add more comments to explain the flow
+ - Wrap error handling around file access - try/catch
+ - Confirm actual text of apiErrorCodes[] - contact WildFire engineering
+ - Add support for /get/report/
+ - Add CLI option for different region URL
+ - Add CLI option for using submit logfile to obtain verdicts
+ - Add CLI option for using submit logfile to obtain reports
+*/
 
 // Install System.CommandLine from command prompt:
 //     dotnet add package System.CommandLine --prerelease
-// For more information: https://learn.microsoft.com/en-us/dotnet/standard/commandline/get-started-tutorial
 
 using System;
 using System.Collections.Generic;
@@ -46,199 +46,330 @@ internal class Program
 {
     internal static void Main(string[] args)
     {
-        // Initialize Variables
-        Dictionary<string, Dictionary<string, string>> apiResult;
-        var apiResults =
-            new Dictionary<string, Dictionary<string, string>>();
+        // Parse the command line parameters.
+        Dictionary<string, string> cliArguments = ParseCommandLine(args);
 
-        // Parse the command line parameters
-        var cliArguments = ParseCommandLine(args);
+        // Initialize variables that hold API results used for command-line output and toi build logfile content.
+        Dictionary<string, Dictionary<string, string>> apiResult; // Holds result from a single API call.
+        Dictionary<string, Dictionary<string, string>> apiResults =
+            new Dictionary<string, Dictionary<string, string>>(); // Holds results from all API calls.
 
-        // Validate the arguments and call the WildFire API
+        // Validate the arguments and call the WildFire API.
         switch (cliArguments["apiOption"])
         {
             case string apiOptionMatch when apiOptionMatch.Equals("submitFile"):
                 if (File.Exists(cliArguments["value"]))
                 {
-                    // Submit the file
+                    // Submit the file.
                     apiResult = CallWildFireAPI(cliArguments["apiKey"], cliArguments["apiOption"],
                         cliArguments["value"]).Result;
+                    // Save the results.
                     apiResults.Add(apiResult.ElementAt(0).Key, apiResult.ElementAt(0).Value);
                 }
                 else
+                    // Add all of the standard keys with empty values to ensure proper CSV data alignment.
                     apiResults.Add(cliArguments["value"],
-                        new Dictionary<string, string> { { "Parameter Error", "File not found." } });
+                        new Dictionary<string, string>
+                        {
+                            { "url", "" },
+                            { "filename","" },
+                            { "sha256","" },
+                            { "md5", "" },
+                            { "size", "" },
+                            { "filetype", "" },
+                            { "Status", "Parameter Error; File not found." } // What went wrong.
+                        });
                 break;
 
-            case string apiOptionMatch when apiOptionMatch.Equals("submitFolder"):
+            case string apiOptionMatch when apiOptionMatch.Equals("submitFiles"):
                 // Submit each of the files in the folder
                 if (Directory.Exists(cliArguments["value"]))
-                    foreach (var folderFile in Directory.EnumerateFiles(cliArguments["value"]))
+                    // Interate through all of the files in the folder.
+                    foreach (string folderFile in Directory.EnumerateFiles(cliArguments["value"]))
                     {
+                        // Submit the file.
                         apiResult = CallWildFireAPI(cliArguments["apiKey"], cliArguments["apiOption"], folderFile)
                             .Result;
+                        // Save the results.
                         apiResults.Add(apiResult.ElementAt(0).Key, apiResult.ElementAt(0).Value);
                     }
                 else
+                    // Add all of the standard keys with empty values to ensure proper CSV data alignment.
                     apiResults.Add(cliArguments["value"],
-                        new Dictionary<string, string> { { "Parameter Error", "Folder not found." } });
+                        new Dictionary<string, string>
+                        {
+                            { "url", "" },
+                            { "filename", "" },
+                            { "sha256","" },
+                            { "md5", "" },
+                            { "size", "" },
+                            { "filetype", "" },
+                            { "Status", "Parameter Error; Folder not found." } // What went wrong.
+                        });
                 break;
 
             case string apiOptionMatch when apiOptionMatch.Equals("submitLink"):
-                if (CheckLinkFormat(cliArguments["value"]))
+                if (CheckLinkFormat(cliArguments["value"])) // Validate the link is properly formatted.
                 {
-                    // Submit the link
+                    // Submit the link.
                     apiResult = CallWildFireAPI(cliArguments["apiKey"], cliArguments["apiOption"],
                         cliArguments["value"]).Result;
+                    // Save the results.
                     apiResults.Add(apiResult.ElementAt(0).Key, apiResult.ElementAt(0).Value);
                 }
                 else
+                    // Add all of the standard keys with empty values to ensure proper CSV data alignment.
                     apiResults.Add(cliArguments["value"],
-                        new Dictionary<string, string> { { "Parameter Error", "Invalid link format." } });
+                        new Dictionary<string, string>
+                        {
+                            { "url", "" },
+                            { "sha256","" },
+                            { "md5", "" },
+                            { "Status", "Parameter Error; Invalid link format." } // What went wrong.
+                        });
                 break;
 
-            case string apiOptionMatch when apiOptionMatch.Equals("submitLinkfile"):
+            case string apiOptionMatch when apiOptionMatch.Equals("submitLinks"):
                 if (File.Exists(cliArguments["value"]))
-                    // Submit each of the links in the file
-                    using (var reader = new StreamReader(cliArguments["value"]))
+                    // Open the file.
+                    using (StreamReader reader = new StreamReader(cliArguments["value"]))
                     {
                         string link;
+                        // Iterate through every line in the file.
                         while ((link = reader.ReadLine()) != null)
-                            if (CheckLinkFormat(link))
+                            if (CheckLinkFormat(link)) // Validate the link is properly formatted.
                             {
-                                // Submit the link
+                                // Submit the link.
                                 apiResult = CallWildFireAPI(cliArguments["apiKey"], cliArguments["apiOption"], link)
                                     .Result;
+                                // Save the results.
                                 apiResults.Add(apiResult.ElementAt(0).Key, apiResult.ElementAt(0).Value);
                             }
                             else
+                                // Add all of the standard keys with empty values to ensure proper CSV data alignment.
                                 apiResults.Add(link,
-                                    new Dictionary<string, string> { { "Parameter Error", "Invalid link format." } });
+                                    new Dictionary<string, string>
+                                    {
+                                        { "url", "" },
+                                        { "sha256","" },
+                                        { "md5", "" },
+                                        { "Status", "Parameter Error; Invalid link format." } // What went wrong.
+                                    });
                     }
                 else
+                    // Add all of the standard keys with empty values to ensure proper CSV data alignment.
                     apiResults.Add(cliArguments["value"],
-                        new Dictionary<string, string> { { "Parameter Error", "File not found." } });
+                        new Dictionary<string, string>
+                        {
+                            { "url", "" },
+                            { "sha256","" },
+                            { "md5", "" },
+                            { "Status", "Parameter Error; File not found." } // What went wrong.
+                        });
                 break;
 
             case string apiOptionMatch when apiOptionMatch.Equals("verdictHash"):
-                if (CheckHashFormat(cliArguments["value"]))
+                if (CheckHashFormat(cliArguments["value"])) // Validate the hash is properly formatted.
                 {
-                    // Get the verdict for the hash
+                    // Get the verdict for the hash.
                     apiResult = CallWildFireAPI(cliArguments["apiKey"], cliArguments["apiOption"],
                         cliArguments["value"]).Result;
+                    // Save the results.
                     apiResults.Add(apiResult.ElementAt(0).Key, apiResult.ElementAt(0).Value);
                 }
                 else
+                    // Add all of the standard keys with empty values to ensure proper CSV data alignment.
                     apiResults.Add(cliArguments["value"],
-                        new Dictionary<string, string> { { "Parameter Error", "Invalid hash format." } });
+                        new Dictionary<string, string>
+                        {
+                            { "sha256", "" },
+                            { "verdict", "" },
+                            { "md5", "" },
+                            { "Status", "Parameter Error; Invalid hash format." } // What went wrong.
+                        });
                 break;
 
-            case string apiOptionMatch when apiOptionMatch.Equals("verdictHashfile"):
+            case string apiOptionMatch when apiOptionMatch.Equals("verdictHashes"):
                 if (File.Exists(cliArguments["value"]))
-                    // Get the verdict for each of the hashes in the file
-                    using (var reader = new StreamReader(cliArguments["value"]))
+                    // Open the file.
+                    using (StreamReader reader = new StreamReader(cliArguments["value"]))
                     {
                         string hash;
+                        // Iterate through every line in the file.
                         while ((hash = reader.ReadLine()) != null)
-                            if (CheckHashFormat(hash))
+                            if (CheckHashFormat(hash)) // Validate the hash is properly formatted.
                             {
-                                // Get the verdict for the hash
+                                // Get the verdict for the hash.
                                 apiResult = CallWildFireAPI(cliArguments["apiKey"], cliArguments["apiOption"], hash)
                                     .Result;
+                                // Save the results.
                                 apiResults.Add(apiResult.ElementAt(0).Key, apiResult.ElementAt(0).Value);
                             }
                             else
+                                // Add all of the standard keys with empty values to ensure proper CSV data alignment.
                                 apiResults.Add(hash,
-                                    new Dictionary<string, string> { { "Parameter Error", "Invalid hash format." } });
+                                    new Dictionary<string, string>
+                                    {
+                                        { "sha256", "" },
+                                        { "verdict", "" },
+                                        { "md5", "" },
+                                        { "Status", "Parameter Error; Invalid hash format." } // What went wrong.
+                                    });
                     }
                 else
+                    // Add all of the standard keys with empty values to ensure proper CSV data alignment.
                     apiResults.Add(cliArguments["value"],
-                        new Dictionary<string, string> { { "Parameter Error", "File not found." } });
+                        new Dictionary<string, string>
+                        {
+                            { "sha256", "" },
+                            { "verdict","" },
+                            { "md5", "" },
+                            { "Status", "Parameter Error; Folder not found." } // What went wrong.
+                        });
                 break;
 
             case string apiOptionMatch when apiOptionMatch.Equals("verdictLink"):
-                if (CheckLinkFormat(cliArguments["value"]))
+                if (CheckLinkFormat(cliArguments["value"])) // Validate the link is properly formatted.
                 {
-                    // Get the verdict for the link
+                    // Get the verdict for the link.
                     apiResult = CallWildFireAPI(cliArguments["apiKey"], cliArguments["apiOption"],
                         cliArguments["value"]).Result;
+                    // Save the results.
                     apiResults.Add(apiResult.ElementAt(0).Key, apiResult.ElementAt(0).Value);
                 }
                 else
+                    // Add all of the standard keys with empty values to ensure proper CSV data alignment.
                     apiResults.Add(cliArguments["value"],
-                        new Dictionary<string, string> { { "Parameter Error", "Invalid link format." } });
+                        new Dictionary<string, string>
+                        {
+                            { "url", "" },
+                            { "verdict", "" },
+                            { "analysis_time", "" },
+                            { "valid", "" },
+                            { "Status", "Parameter Error; Invalid link format." } // What went wrong.
+                        });
                 break;
 
-            case string apiOptionMatch when apiOptionMatch.Equals("verdictLinkfile"):
+            case string apiOptionMatch when apiOptionMatch.Equals("verdictLinks"):
                 if (File.Exists(cliArguments["value"]))
-                    // Get the verdict for each of the links in the file
-                    using (var reader = new StreamReader(cliArguments["value"]))
+                    // Open the file.
+                    using (StreamReader reader = new StreamReader(cliArguments["value"]))
                     {
                         string link;
+                        // Iterate through every line in the file.
                         while ((link = reader.ReadLine()) != null)
-                            if (CheckLinkFormat(link))
+                            if (CheckLinkFormat(link)) // Validate the link is properly formatted.
                             {
                                 // Get the verdict for the link
                                 apiResult = CallWildFireAPI(cliArguments["apiKey"], cliArguments["apiOption"], link)
                                     .Result;
+                                // Save the results.
                                 apiResults.Add(apiResult.ElementAt(0).Key, apiResult.ElementAt(0).Value);
                             }
                             else
-                            {
+                                // Add all of the standard keys with empty values to ensure proper CSV data alignment.
                                 apiResults.Add(link,
-                                    new Dictionary<string, string> { { "Parameter Error", "Invalid link format." } });
-                            }
+                                    new Dictionary<string, string>
+                                    {
+                                        { "url", "" },
+                                        { "verdict", "" },
+                                        { "analysis_time", "" },
+                                        { "valid", "" },
+                                        { "Status", "Parameter Error; Invalid link format." } // What went wrong.
+                                    });
                     }
                 else
+                    // Add all of the standard keys with empty values to ensure proper CSV data alignment.
                     apiResults.Add(cliArguments["value"],
-                        new Dictionary<string, string> { { "Parameter Error", "File not found." } });
+                        new Dictionary<string, string>
+                        {
+                            { "url", "" },
+                            { "verdict", "" },
+                            { "analysis_time", "" },
+                            { "valid", "" },
+                            { "Status", "Parameter Error; Folder not found." } // What went wrong.
+                        });
                 break;
         }
 
-        for (var outerElement = 0; outerElement < apiResults.Count; outerElement++)
+        // Initialize variables used to build the content for the logfile.
+        string logfileHeader = ""; // Contains a unique key for each column header.
+        List<string> logfileEntries = new List<string>(); // Holds results from all API calls.
+
+        // Display the results in the command shell; build the logfile content.
+        for (int outerElement = 0; outerElement < apiResults.Count; outerElement++)
         {
             Console.WriteLine("Parameter: " + apiResults.ElementAt(outerElement).Key);
-            for (var innerElement = 0;
-                 innerElement < apiResults.ElementAt(outerElement).Value.Count;
-                 innerElement++)
-                Console.WriteLine("\t" + apiResults.ElementAt(outerElement).Value.ElementAt(innerElement).Key +
-                                  ": " + apiResults.ElementAt(outerElement).Value.ElementAt(innerElement).Value);
-            // if (i < (apiResults.ElementAt(0).Value).Count - 1)
-            //    Console.Write("; ");
-            // else
-            //    Console.WriteLine();
-            Console.WriteLine();
+            // Build the logfile header; A conditional is necessary to account for the command-line options.
+            // that result in multiple API calls and multiple instances of the outer key, "Parameter".
+            if (!logfileHeader.Contains("Parameter")) // The key is needed only once in the header.
+                logfileHeader = "Parameter";
+            string logfileEntry = apiResults.ElementAt(outerElement).Key; // Add the key, e.g. the command-line hash or link.
+            for (int innerElement = 0; innerElement < apiResults.ElementAt(outerElement).Value.Count; innerElement++)
+            {
+                // Use temporary variables for the key and value to streamline the output and logfile content creation.
+                string innerElementKey = apiResults.ElementAt(outerElement).Value.ElementAt(innerElement).Key;
+                string innerElementValue = apiResults.ElementAt(outerElement).Value.ElementAt(innerElement).Value;
+                Console.WriteLine("\t" + innerElementKey + ": " + innerElementValue);
+                // Build the logfile header; A conditional is necessary to account for the command-line options.
+                // that result in multiple API calls and multiple inner keys. (e.g., "sha256", "verdict", etc.).
+                if (!logfileHeader.Contains(innerElementKey)) // The key is needed only once in the header.
+                    logfileHeader = logfileHeader + "," + innerElementKey;
+                logfileEntry = logfileEntry + "," + innerElementValue; // Add a comma separator and the next value from the results.
+            }
+            Console.WriteLine(); // Blank line to improve readability.
+            logfileEntries.Add(logfileEntry); // Save the entry; will be saved to logfile later.
         }
+
+        // The logfile name is comprised of the datetime and the commnand-line option.
+        string logfileName = DateTime.Now.ToString("yyyyMMddHHmmss") + "-" + cliArguments["apiOption"] + ".csv";
+
+        // The logfile will be stored in a subfolder of the folder where this app is executing.
+        // Need to use AppContext.BaseDirectory because 'System.Reflection.AssemblyName.CodeBase'
+        // always returns an empty string for assemblies embedded in a single-file app.
+        string logfilePath = AppContext.BaseDirectory + "logfiles"; 
+        if (!Directory.Exists(logfilePath))
+            Directory.CreateDirectory(logfilePath);
+
+        // Save the results.
+        File.WriteAllText(Path.Combine(logfilePath, logfileName), logfileHeader + "\r\n"); 
+        File.AppendAllLines(Path.Combine(logfilePath, logfileName), logfileEntries);
+
+        // Let the user know the name/location of the logfolder.
+        Console.WriteLine("Results saved to " + Path.Combine(logfilePath, logfileName));
     }
 
     public static Dictionary<string, string> ParseCommandLine(string[] args)
     {
-        var cliArguments = new Dictionary<string, string>
+        // For more information about System.CommandLine:
+        // https://learn.microsoft.com/en-us/dotnet/standard/commandline/get-started-tutorial
+
+        Dictionary<string,string> cliArguments = new Dictionary<string, string>
         {
             { "apiKey", "" },
             {
                 "apiOption", ""
-            }, // submitFile, submitFolder, submitLink, submitLinkfile, verdictHash, verdictHashfile, verdictLink, verdictLinkfile
+            }, // submitFile, submitFiles, submitLink, submitLinks, verdictHash, verdictHashes, verdictLink, verdictLinks
             { "value", "" }
         };
 
-        var apiKey = new Option<string?>(
-                "--apikey",
-                "WildFire API Key")
+        Option<string?> apiKey = new Option<string?>(
+                name: "--apikey",
+                description: "WildFire API Key")
             { ArgumentHelpName = "APIKEY" };
         apiKey.IsRequired = true;
         apiKey.AddValidator(result =>
         {
-            var apiKeySubmitted = result.GetValueForOption(apiKey).ToString();
+            string apiKeySubmitted = result.GetValueForOption(apiKey).ToString();
             if (apiKeySubmitted.All(char.IsLetterOrDigit) && apiKeySubmitted.Length == 64)
                 cliArguments["apiKey"] = apiKeySubmitted;
             else
                 result.ErrorMessage = "<APIKEY> has an incorrect length and/or contains invalid characters.";
         });
 
-        var submitFile = new Option<FileInfo?>(
-                "--file",
-                "Submit <FILE>")
+        Option<FileInfo?> submitFile = new Option<FileInfo?>(
+                name: "--file",
+                description: "Submit <FILE>")
             { ArgumentHelpName = "FILE" };
         submitFile.AddValidator(result =>
         {
@@ -247,18 +378,18 @@ internal class Program
             ;
         });
 
-        var submitFiles = new Option<FileInfo?>(
-                "--files",
-                "Submit the file(s) in <FOLDER>")
+        Option<FileInfo?> submitFiles = new Option<FileInfo?>(
+                name: "--files",
+                description: "Submit the file(s) in <FOLDER>")
             { ArgumentHelpName = "FOLDER" };
         submitFiles.AddValidator(result =>
         {
-            cliArguments["apiOption"] = "submitFolder";
+            cliArguments["apiOption"] = "submitFiles";
             cliArguments["value"] = result.GetValueForOption(submitFiles).FullName;
         });
 
-        var submitLink = new Option<string?>(
-                "--link",
+        Option<string?> submitLink = new Option<string?>(
+                name: "--link",
                 "Submit <LINK>")
             { ArgumentHelpName = "LINK" };
         submitLink.AddValidator(result =>
@@ -267,19 +398,19 @@ internal class Program
             cliArguments["value"] = result.GetValueForOption(submitLink).ToString();
         });
 
-        var submitLinks = new Option<FileInfo?>(
-                "--links",
-                "Submit the link(s) in <FILE>")
+        Option<FileInfo?> submitLinks = new Option<FileInfo?>(
+                name: "--links",
+                description: "Submit the link(s) in <FILE>")
             { ArgumentHelpName = "FILE" };
         submitLinks.AddValidator(result =>
         {
-            cliArguments["apiOption"] = "submitLinkfile";
+            cliArguments["apiOption"] = "submitLinks";
             cliArguments["value"] = result.GetValueForOption(submitLinks).FullName;
         });
 
-        var verdictHash = new Option<string?>(
-                "--hash",
-                "Obtain the verdict for MD5/SHA-256 <HASH>")
+        Option<string?> verdictHash = new Option<string?>(
+                name: "--hash",
+                description: "Obtain the verdict for MD5/SHA-256 <HASH>")
             { ArgumentHelpName = "HASH" };
         verdictHash.AddValidator(result =>
         {
@@ -287,19 +418,19 @@ internal class Program
             cliArguments["value"] = result.GetValueForOption(verdictHash).ToString();
         });
 
-        var verdictHashes = new Option<FileInfo?>(
-                "--hashes",
-                "Obtain the verdict for MD5/SHA-256 hash(es) in <FILE>")
+        Option<FileInfo?> verdictHashes = new Option<FileInfo?>(
+                name: "--hashes",
+                description: "Obtain the verdict for MD5/SHA-256 hash(es) in <FILE>")
             { ArgumentHelpName = "FILE" };
         verdictHashes.AddValidator(result =>
         {
-            cliArguments["apiOption"] = "verdictHashfile";
+            cliArguments["apiOption"] = "verdictHashes";
             cliArguments["value"] = result.GetValueForOption(verdictHashes).FullName;
         });
 
-        var verdictLink = new Option<string?>(
-                "--link",
-                "Obtain the verdict for <LINK>")
+        Option<string?> verdictLink = new Option<string?>(
+                name: "--link",
+                description: "Obtain the verdict for <LINK>")
             { ArgumentHelpName = "LINK" };
         verdictLink.AddValidator(result =>
         {
@@ -307,31 +438,31 @@ internal class Program
             cliArguments["value"] = result.GetValueForOption(verdictLink).ToString();
         });
 
-        var verdictLinks = new Option<FileInfo?>(
-                "--links",
-                "Obtain the verdict for link(s) in <FILE>")
+        Option<FileInfo?> verdictLinks = new Option<FileInfo?>(
+                name: "--links",
+                description: "Obtain the verdict for link(s) in <FILE>")
             { ArgumentHelpName = "FILE" };
         verdictLinks.AddValidator(result =>
         {
-            cliArguments["apiOption"] = "verdictLinkfile";
+            cliArguments["apiOption"] = "verdictLinks";
             cliArguments["value"] = result.GetValueForOption(verdictLinks).FullName;
         });
 
-        var submit = new Command("submit", "Submit file(s)/link(s) to WildFire for analysis");
+        Command? submit = new Command("submit", "Submit file(s)/link(s) to WildFire for analysis");
         submit.AddOption(apiKey);
         submit.AddOption(submitFile);
         submit.AddOption(submitFiles);
         submit.AddOption(submitLink);
         submit.AddOption(submitLinks);
 
-        var verdict = new Command("verdict", "Obtain the verdict for file(s)/link(s)");
+        Command? verdict = new Command("verdict", "Obtain the verdict for file(s)/link(s)");
         verdict.AddOption(apiKey);
         verdict.AddOption(verdictHash);
         verdict.AddOption(verdictHashes);
         verdict.AddOption(verdictLink);
         verdict.AddOption(verdictLinks);
 
-        var rootCommand = new RootCommand("WildFire API Utility");
+        Command? rootCommand = new RootCommand("WildFire API Utility");
         rootCommand.AddCommand(submit);
         rootCommand.AddCommand(verdict);
         rootCommand.InvokeAsync(args);
@@ -344,83 +475,70 @@ internal class Program
             string apiHost = "https://wildfire.paloaltonetworks.com/")
     {
         // Initialize Variables
-        var httpClient = new HttpClient(); // Using a shared client for simplicity and speed.
-        httpClient.BaseAddress =
-            new Uri(apiHost); // To-Do: make this a commandline option so different regions can be used
+        HttpClient? httpClient = new HttpClient(); // Using a shared client for simplicity and speed.
+        httpClient.BaseAddress = new Uri(apiHost); // To-Do: Turn this into a command-line option.
 
-        // Possible error codes returned by the API; both numeric and text keys are used because the responses have not been confirmed with engineering
-        var apiErrorCodes = new Dictionary<string, string>
+        // Possible error codes returned by the API.
+        // Both numeric and text keys are used because the
+        // responses have not been confirmed with engineering.
+        Dictionary<string, string> apiErrorCodes = new Dictionary<string, string>
         {
             { "OK", "200; Successful call." },
             { "Unauthorized", "401; Invalid API key. Ensure that the API key is correct." },
             { "401", "Unauthorized; Invalid API key. Ensure that the API key is correct." },
             { "Forbidden", "403; Permission denied." },
-            { "403", "Forbidden. Permission denied." },
+            { "403", "Forbidden; Permission denied." },
             { "NotFound", "404; The file or report was not found." },
-            { "404", "The file or report was not found." },
-            {
-                "MethodNotAllowed",
-                "405; Invalid request method. Ensure you are using POST for all calls except '/test/pe'."
-            },
-            { "405", "Invalid request method. Ensure you are using POST for all calls except '/test/pe'." },
+            { "404", "NotFound; The file or report was not found." },
+            { "MethodNotAllowed", "405; Invalid request method." },
+            { "405", "MethodNotAllowed; Invalid request method." },
             { "RequestEntityTooLarge", "413; File size over maximum limit." },
-            { "413", "File size over maximum limit." },
+            { "413", "RequestEntityTooLarge; File size over maximum limit." },
             { "UnsupportedFileType", "418; File type is not supported." },
-            { "418", "File type is not supported." },
-            {
-                "MaxRequestReached", "419; The maximum number of uploads per day has been exceeded. " +
-                                     "If you continue to make API requests, you will receive this error until the daily limit resets at 23:59:00 UTC."
-            },
-            {
-                "419", "The maximum number of uploads per day has been exceeded. " +
-                       "If you continue to make API requests, you will receive this error until the daily limit resets at 23:59:00 UTC."
-            },
+            { "418", "UnsupportedFileType; File type is not supported." },
+            { "MaxRequestReached", "419; The maximum number of uploads per day has been exceeded." },
+            { "419", "MaxRequestReached; The maximum number of uploads per day has been exceeded. " },
             { "InsufficientArguments", "420; Ensure the request has the required request parameters." },
-            { "420", "Insufficient arguments. Ensure the request has the required request parameters." },
-            { "InvalidArgument", "421; Ensure the request is properly constructed." },
+            { "420", "InsufficientArguments; Ensure the request has the required request parameters." },
             { "MisdirectedRequest", "421; Invalid arguments. Ensure the request is properly constructed." },
-            { "421", "InvalidArgument. Ensure the request is properly constructed." },
-            {
-                "UnprocessableEntity",
-                "422; The provided file or URL cannot be processed. Possible reasons include: " +
-                "(1) The specified URL cannot be downloaded, or (2) The specified file has formatting errors or invalid content."
-            },
-            {
-                "422",
-                "Unprocessable entity. The provided file or URL cannot be processed. Possible reasons include: " +
-                "(1) The specified URL cannot be downloaded, or (2) The specified file has formatting errors or invalid content."
-            },
+            { "InvalidArgument", "421; Ensure the request is properly constructed." },
+            { "421", "InvalidArgument; Ensure the request is properly constructed." },
+            { "UnprocessableEntity", "422; The provided file or URL cannot be processed." },
+            { "422", "UnprocessableEntity; The provided file or URL cannot be processed." },
             { "InternalError", "500; Internal error." },
-            { "500", "Internal error." },
+            { "500", "InternalError; Internal error." },
             { "513", "513; File upload failed." }
         };
 
-        var apiResourceURLs = new Dictionary<string, string>
+        // Map the command line options to the API endpoints.
+        Dictionary<string, string> apiResourceURLs = new Dictionary<string, string>
         {
             { "submitFile", "publicapi/submit/file" },
-            { "submitFolder", "publicapi/submit/file" },
+            { "submitFiles", "publicapi/submit/file" },
             { "submitLink", "publicapi/submit/link" },
-            { "submitLinkfile", "publicapi/submit/link" },
+            { "submitLinks", "publicapi/submit/link" },
             { "verdictHash", "publicapi/get/verdict" },
-            { "verdictHashfile", "publicapi/get/verdict" },
+            { "verdictHashes", "publicapi/get/verdict" },
             { "verdictLink", "publicapi/get/verdict" },
-            { "verdictLinkfile", "publicapi/get/verdict" }
+            { "verdictLinks", "publicapi/get/verdict" }
         };
 
-        var apiResourceTags = new Dictionary<string, string>
+        // Map the command line options to the response tags.
+        // THe tags are used to extract the core API response content.
+        Dictionary<string, string> apiResourceTags = new Dictionary<string, string>
         {
             { "submitFile", "upload-file-info" },
-            { "submitFolder", "upload-file-info" },
+            { "submitFiles", "upload-file-info" },
             { "submitLink", "submit-link-info" },
-            { "submitLinkfile", "submit-link-info" },
+            { "submitLinks", "submit-link-info" },
             { "verdictHash", "get-verdict-info" },
-            { "verdictHashfile", "get-verdict-info" },
+            { "verdictHashes", "get-verdict-info" },
             { "verdictLink", "get-verdict-info" },
-            { "verdictLinkfile", "get-verdict-info" }
+            { "verdictLinks", "get-verdict-info" }
         };
 
-        // Used to display text verdicts instead of a number that needs to be looked up on the API webpage
-        var apiVerdictCodes = new Dictionary<string, string>
+        // Map the verdict codes to text so the output is more meaningful.
+        Dictionary<string, string> apiVerdictCodes = new Dictionary<string, string>
         {
             { "0", "Benign" },
             { "1", "Malware" },
@@ -433,26 +551,27 @@ internal class Program
             { "-103", "Invalid hash value." }
         };
 
-        // Contains all of the API parameter names and values
-        var multipartFormDataContent = new MultipartFormDataContent();
+        // Contains all of the API parameter names and values.
+        MultipartFormDataContent multipartFormDataContent = new MultipartFormDataContent();
 
-        // Dictionary containing final content returned to caller
-        var apiResultComplete =
+        // Dictionary containing final content returned to caller.
+        Dictionary<string, Dictionary<string, string>> apiResultComplete =
             new Dictionary<string, Dictionary<string, string>>();
 
-        // Use apiOptionValue as the key to ensure the dictionary returned to the caller is unique
+        // Use apiOptionValue as the key to ensure the dictionary returned to the caller is unique.
         apiResultComplete.Add(apiOptionValue, new Dictionary<string, string>());
 
-        // Add the API key to the form
+        // Add the API key to the form.
         multipartFormDataContent.Add(new StringContent(apiKey), @"""apikey""");
 
+        // Tailor the rest of the content to match the command-line option.
         switch (apiOption)
         {
             case string apiOptionMatch
-                when apiOptionMatch.Equals("submitFile") || apiOptionMatch.Equals("submitFolder"):
+                when apiOptionMatch.Equals("submitFile") || apiOptionMatch.Equals("submitFiles"):
                 // Load and add the file to the form
-                var fileName = Path.GetFileName(apiOptionValue);
-                var fileStreamContent = new StreamContent(File.OpenRead(apiOptionValue));
+                string fileName = Path.GetFileName(apiOptionValue);
+                StreamContent fileStreamContent = new StreamContent(File.OpenRead(apiOptionValue));
                 fileStreamContent.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
                 fileStreamContent.Headers.ContentDisposition = new ContentDispositionHeaderValue("form-data")
                 {
@@ -463,73 +582,72 @@ internal class Program
                 break;
 
             case string apiOptionMatch
-                when apiOptionMatch.Equals("submitLink") || apiOptionMatch.Equals("submitLinkfile"):
+                when apiOptionMatch.Equals("submitLink") || apiOptionMatch.Equals("submitLinks"):
                 multipartFormDataContent.Add(new StringContent(apiOptionValue), @"""link""");
                 break;
 
             case string apiOptionMatch
-                when apiOptionMatch.Equals("verdictHash") || apiOptionMatch.Equals("verdictHashfile"):
+                when apiOptionMatch.Equals("verdictHash") || apiOptionMatch.Equals("verdictHashes"):
                 // Add the hash to the form
                 multipartFormDataContent.Add(new StringContent(apiOptionValue), @"""hash""");
                 break;
 
             case string apiOptionMatch
-                when apiOptionMatch.Equals("verdictLink") || apiOptionMatch.Equals("verdictLinkfile"):
+                when apiOptionMatch.Equals("verdictLink") || apiOptionMatch.Equals("verdictLinks"):
                 multipartFormDataContent.Add(new StringContent(apiOptionValue), @"""url""");
                 break;
         }
 
-        // Make the API call with the key and form-encoded parameters
-        var apiResultHTTP = await httpClient.PostAsync(apiResourceURLs[apiOption], multipartFormDataContent);
+        // Make the API call with the key and form-encoded parameters.
+        HttpResponseMessage apiResultHTTP = await httpClient.PostAsync(apiResourceURLs[apiOption], multipartFormDataContent);
 
         // Did it fail?
         if (apiResultHTTP.IsSuccessStatusCode)
         {
-            // Get the results
-            var apiResultXML = new XmlDocument();
+            // Get the results.
+            XmlDocument apiResultXML = new XmlDocument();
             apiResultXML.LoadXml(await apiResultHTTP.Content.ReadAsStringAsync());
 
-            // Remove the XML declaration node because JsonConvert.DeserializeObject barfs on "?xml"
+            // Remove the XML declaration node because JsonConvert.DeserializeObject barfs on "?xml".
             foreach (XmlNode node in apiResultXML)
                 if (node.NodeType == XmlNodeType.XmlDeclaration)
                     apiResultXML.RemoveChild(node);
 
-            // Extract just the salient data and convert to JSON; "omitRootObject: true" removes the "wildfire" outer key
-            var apiResultJSON = JsonConvert.SerializeXmlNode(apiResultXML, Formatting.None, true);
+            // Convert the API response to JSON.
+            // "omitRootObject: true" removes the "wildfire" outer key.
+            string apiResultJSON = JsonConvert.SerializeXmlNode(apiResultXML, Formatting.None, true);
 
-            // Convert the JSON to a dictionary to extract the core content
+            // Convert the JSON to a dictionary.
             var apiResultCoreContent =
                 JsonConvert.DeserializeObject<Dictionary<string, Dictionary<string, string>>>(apiResultJSON);
 
-            // Add just the core results
-            foreach (var dictElement in apiResultCoreContent[apiResourceTags[apiOption]])
+            // Extract and save just the core API response content.
+            foreach (KeyValuePair<string, string> dictElement in apiResultCoreContent[apiResourceTags[apiOption]])
                 if (dictElement.Key == "verdict")
                     apiResultComplete[apiOptionValue].Add(dictElement.Key, apiVerdictCodes[dictElement.Value]);
                 else
                     apiResultComplete[apiOptionValue].Add(dictElement.Key, dictElement.Value);
         }
 
-        // Add the HTTP response status code
-        apiResultComplete[apiOptionValue].Add("HTTP Response '" + apiResultHTTP.StatusCode + "'",
-            apiErrorCodes[apiResultHTTP.StatusCode.ToString()]);
+        // Add the HTTP response status code.
+        apiResultComplete[apiOptionValue].Add("Status", apiErrorCodes[apiResultHTTP.StatusCode.ToString()]);
 
         return apiResultComplete;
     }
 
     public static bool CheckHashFormat(string hash)
     {
-        hash = "12a6a16f9f0f7d22d000d1bbd75a96d882d4e3e481bc0eb4b62b1aeb65855bb3";
-        var hashPattern = "[A-F0-9]";
-        var regexProcessor = new Regex(hashPattern, RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        string hashPattern = "[A-F0-9]"; // Valid hash characters.
+        Regex regexProcessor = new Regex(hashPattern, RegexOptions.Compiled | RegexOptions.IgnoreCase); 
         if ((hash.Length == 32 || hash.Length == 64) && regexProcessor.IsMatch(hash))
-            return true;
-        return false;
+            return true; // Valid MD5 or SHA-256 characters and length.
+        return false; // Characters and/or length are invalid.
     }
 
     public static bool CheckLinkFormat(string URL)
     {
-        var urlPattern = @"^(?:http(s)?:\/\/)?[\w.-]+(?:\.[\w\.-]+)+[\w\-\._~:/?#[\]@!\$&'\(\)\*\+,;=.]+$";
-        var regexProcessor = new Regex(urlPattern, RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        string urlPattern = @"^(?:http(s)?:\/\/)?[\w.-]+(?:\.[\w\.-]+)+[\w\-\._~:/?#[\]@!\$&'\(\)\*\+,;=.]+$"; // Valid URL format and characters.
+        Regex regexProcessor = new Regex(urlPattern, RegexOptions.Compiled | RegexOptions.IgnoreCase);
         return regexProcessor.IsMatch(URL);
     }
 }
