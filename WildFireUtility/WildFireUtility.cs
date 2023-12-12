@@ -1,23 +1,29 @@
-﻿// Copyright (c) 2023 Michael Logan <ObstreperousMadcap@soclab.tech>
+﻿// WildFireUtility:
+// Allows command-line interaction with Palo Alto Network's
+// Advanced WildFire (https://www.paloaltonetworks.com/network-security/wildfire)
+// using its REST API (https://docs.paloaltonetworks.com/wildfire/u-v/wildfire-api).
 //
-// Permission to use, copy, modify, and distribute this software for any
-// purpose with or without fee is hereby granted, provided that the above
-// copyright notice and this permission notice appear in all copies.
+// Copyright (c) 2023 Michael Logan <ObstreperousMadcap@soclab.tech>
 //
-// THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
-// WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
-// MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
-// ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
-// WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
-// ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
-// OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+// This program is free software: you can redistribute it and/or modify it under
+// the terms of the GNU General Public License as published by the Free Software
+// Foundation, either version 3 of the License, or any later version. This program
+// is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+// without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
+// PURPOSE. See the GNU General Public License for more details. You should have
+// received a copy ofthe GNU General Public License along with this program.
+// If not, see <http://www.gnu.org/licenses/>.
+
+// Version    Date        Notes
+// 0.5        2023-12-11  The implemented API calls are release-quality. There are
+//                        some API calls and functionality that is incomplete.
 
 
 /*
 To-Do List 
  - Add more comments to explain the flow
- - Wrap error handling around file access - try/catch
- - Confirm actual text of apiErrorCodes[] - contact WildFire engineering
+ - Wrap error handling around file access
+ - Confirm actual text of apiErrorCodes[]
  - Add support for /get/report/
  - Add CLI option for different region URL
  - Add CLI option for using submit logfile to obtain verdicts
@@ -49,6 +55,9 @@ internal class Program
         // Parse the command line parameters.
         Dictionary<string, string> cliArguments = ParseCommandLine(args);
 
+        if (cliArguments.Count == 0) // Invalid/incomplete command-line arguments.
+            return;
+
         // Initialize variables that hold API results used for command-line output and toi build logfile content.
         Dictionary<string, Dictionary<string, string>> apiResult; // Holds result from a single API call.
         Dictionary<string, Dictionary<string, string>> apiResults =
@@ -57,6 +66,22 @@ internal class Program
         // Validate the arguments and call the WildFire API.
         switch (cliArguments["apiOption"])
         {
+            case string apiOptionMatch when apiOptionMatch.Equals("reportHash"):
+                Console.WriteLine("reportHash has not been implemented.");
+                return;
+
+            case string apiOptionMatch when apiOptionMatch.Equals("reportHashes"):
+                Console.WriteLine("reportHashes has not been implemented.");
+                return;
+
+            case string apiOptionMatch when apiOptionMatch.Equals("reportLink"):
+                Console.WriteLine("reportLink has not been implemented.");
+                return;
+
+            case string apiOptionMatch when apiOptionMatch.Equals("reportLinks"):
+                Console.WriteLine("reportLinks has not been implemented.");
+                return;
+
             case string apiOptionMatch when apiOptionMatch.Equals("submitFile"):
                 if (File.Exists(cliArguments["value"]))
                 {
@@ -347,9 +372,7 @@ internal class Program
         Dictionary<string,string> cliArguments = new Dictionary<string, string>
         {
             { "apiKey", "" },
-            {
-                "apiOption", ""
-            }, // submitFile, submitFiles, submitLink, submitLinks, verdictHash, verdictHashes, verdictLink, verdictLinks
+            { "apiOption", "" },
             { "value", "" }
         };
 
@@ -365,6 +388,46 @@ internal class Program
                 cliArguments["apiKey"] = apiKeySubmitted;
             else
                 result.ErrorMessage = "<APIKEY> has an incorrect length and/or contains invalid characters.";
+        });
+
+        Option<string?> reportHash = new Option<string?>(
+                name: "--hash",
+                "Obtain the report for <HASH>")
+            { ArgumentHelpName = "HASH" };
+        reportHash.AddValidator(result =>
+        {
+            cliArguments["apiOption"] = "reportHash";
+            cliArguments["value"] = result.GetValueForOption(reportHash).ToString();
+        });
+
+        Option<FileInfo?> reportHashes = new Option<FileInfo?>(
+                name: "--hashes",
+                description: "Obtain the reports for the hash(es) in <FILE>")
+            { ArgumentHelpName = "FILE" };
+        reportHashes.AddValidator(result =>
+        {
+            cliArguments["apiOption"] = "reportHashes";
+            cliArguments["value"] = result.GetValueForOption(reportHashes).FullName;
+        });
+
+        Option<string?> reportLink = new Option<string?>(
+                name: "--link",
+                "Obtain the report for <LINK>")
+            { ArgumentHelpName = "LINK" };
+        reportLink.AddValidator(result =>
+        {
+            cliArguments["apiOption"] = "reportLink";
+            cliArguments["value"] = result.GetValueForOption(reportLink).ToString();
+        });
+
+        Option<FileInfo?> reportLinks = new Option<FileInfo?>(
+                name: "--links",
+                description: "Obtain the reports for the link(s) in <FILE>")
+            { ArgumentHelpName = "FILE" };
+        reportLinks.AddValidator(result =>
+        {
+            cliArguments["apiOption"] = "reportLinks";
+            cliArguments["value"] = result.GetValueForOption(reportLinks).FullName;
         });
 
         Option<FileInfo?> submitFile = new Option<FileInfo?>(
@@ -448,14 +511,21 @@ internal class Program
             cliArguments["value"] = result.GetValueForOption(verdictLinks).FullName;
         });
 
-        Command? submit = new Command("submit", "Submit file(s)/link(s) to WildFire for analysis");
+        Command? report = new Command("report", "Obtain the report for hash(es)/link(s)");
+        report.AddOption(apiKey);
+        report.AddOption(reportHash);
+        report.AddOption(reportHashes);
+        report.AddOption(reportLink);
+        report.AddOption(reportLinks);
+
+        Command? submit = new Command("submit", "Submit file(s)/link(s) for analysis");
         submit.AddOption(apiKey);
         submit.AddOption(submitFile);
         submit.AddOption(submitFiles);
         submit.AddOption(submitLink);
         submit.AddOption(submitLinks);
 
-        Command? verdict = new Command("verdict", "Obtain the verdict for file(s)/link(s)");
+        Command? verdict = new Command("verdict", "Obtain the verdict for hash(es)/link(s)");
         verdict.AddOption(apiKey);
         verdict.AddOption(verdictHash);
         verdict.AddOption(verdictHashes);
@@ -463,11 +533,12 @@ internal class Program
         verdict.AddOption(verdictLinks);
 
         Command? rootCommand = new RootCommand("WildFire API Utility");
+        rootCommand.AddCommand(report);
         rootCommand.AddCommand(submit);
         rootCommand.AddCommand(verdict);
-        rootCommand.InvokeAsync(args);
-
-        return cliArguments;
+        if (rootCommand.Invoke(args) != 0) // Parse arguments.
+            return new Dictionary<string, string>(); // Invalid/incomplete command-line arguments.
+        return cliArguments; // Valid/complete command-line arguments.
     }
 
     public static async Task<Dictionary<string, Dictionary<string, string>>>
