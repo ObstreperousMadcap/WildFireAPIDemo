@@ -15,12 +15,13 @@
 // If not, see <http://www.gnu.org/licenses/>.
 
 // Version    Date        Notes
-// 0.5        2023-12-11  The implemented API calls are release-quality. There are
+// 0.5.1      2023-12-11  The implemented API calls are release-quality. There are
 //                        some API calls and other functionality that are incomplete.
 
 
 /*
-To-Do List 
+To-Do List
+ - Check why "--version" add extra characters
  - Add more comments to explain the flow
  - Wrap error handling around file access
  - Confirm actual text of apiErrorCodes[]
@@ -370,12 +371,7 @@ internal class Program
         // For more information about System.CommandLine:
         // https://learn.microsoft.com/en-us/dotnet/standard/commandline/get-started-tutorial
 
-        Dictionary<string,string> cliArguments = new Dictionary<string, string>
-        {
-            { "apiKey", "" },
-            { "apiOption", "" },
-            { "value", "" }
-        };
+        Dictionary<string, string> cliArguments = new Dictionary<string, string>();
 
         Option<string?> apiKey = new Option<string?>(
                 name: "--apikey",
@@ -386,7 +382,7 @@ internal class Program
         {
             string apiKeySubmitted = result.GetValueForOption(apiKey).ToString();
             if (apiKeySubmitted.All(char.IsLetterOrDigit) && apiKeySubmitted.Length == 64)
-                cliArguments["apiKey"] = apiKeySubmitted;
+                  cliArguments.Add("apiKey", apiKeySubmitted);
             else
                 result.ErrorMessage = "<APIKEY> has an incorrect length and/or contains invalid characters.";
         });
@@ -397,8 +393,9 @@ internal class Program
             { ArgumentHelpName = "HASH" };
         reportHash.AddValidator(result =>
         {
-            cliArguments["apiOption"] = "reportHash";
-            cliArguments["value"] = result.GetValueForOption(reportHash).ToString();
+            cliArguments.Add("apiOption", "reportHash");
+            cliArguments.Add("value", result.GetValueForOption(reportHash).ToString());
+
         });
 
         Option<FileInfo?> reportHashes = new Option<FileInfo?>(
@@ -407,8 +404,8 @@ internal class Program
             { ArgumentHelpName = "FILE" };
         reportHashes.AddValidator(result =>
         {
-            cliArguments["apiOption"] = "reportHashes";
-            cliArguments["value"] = result.GetValueForOption(reportHashes).FullName;
+            cliArguments.Add("apiOption", "reportHashes");
+            cliArguments.Add("value", result.GetValueForOption(reportHashes).FullName);
         });
 
         Option<string?> reportLink = new Option<string?>(
@@ -417,8 +414,8 @@ internal class Program
             { ArgumentHelpName = "LINK" };
         reportLink.AddValidator(result =>
         {
-            cliArguments["apiOption"] = "reportLink";
-            cliArguments["value"] = result.GetValueForOption(reportLink).ToString();
+            cliArguments.Add("apiOption", "reportLink");
+            cliArguments.Add("value", result.GetValueForOption(reportLink).ToString());
         });
 
         Option<FileInfo?> reportLinks = new Option<FileInfo?>(
@@ -427,8 +424,8 @@ internal class Program
             { ArgumentHelpName = "FILE" };
         reportLinks.AddValidator(result =>
         {
-            cliArguments["apiOption"] = "reportLinks";
-            cliArguments["value"] = result.GetValueForOption(reportLinks).FullName;
+            cliArguments.Add("apiOption", "reportLinks");
+            cliArguments.Add("value", result.GetValueForOption(reportLinks).FullName);
         });
 
         Option<FileInfo?> submitFile = new Option<FileInfo?>(
@@ -437,9 +434,8 @@ internal class Program
             { ArgumentHelpName = "FILE" };
         submitFile.AddValidator(result =>
         {
-            cliArguments["apiOption"] = "submitFile";
-            cliArguments["value"] = result.GetValueForOption(submitFile).FullName;
-            ;
+            cliArguments.Add("apiOption", "submitFile");
+            cliArguments.Add("value", result.GetValueForOption(submitFile).FullName);
         });
 
         Option<FileInfo?> submitFiles = new Option<FileInfo?>(
@@ -448,8 +444,8 @@ internal class Program
             { ArgumentHelpName = "FOLDER" };
         submitFiles.AddValidator(result =>
         {
-            cliArguments["apiOption"] = "submitFiles";
-            cliArguments["value"] = result.GetValueForOption(submitFiles).FullName;
+            cliArguments.Add("apiOption", "submitFiles");
+            cliArguments.Add("value", result.GetValueForOption(submitFiles).FullName);
         });
 
         Option<string?> submitLink = new Option<string?>(
@@ -458,8 +454,8 @@ internal class Program
             { ArgumentHelpName = "LINK" };
         submitLink.AddValidator(result =>
         {
-            cliArguments["apiOption"] = "submitLink";
-            cliArguments["value"] = result.GetValueForOption(submitLink).ToString();
+            cliArguments.Add("apiOption", "submitLink");
+            cliArguments.Add("value", result.GetValueForOption(submitLink).ToString());
         });
 
         Option<FileInfo?> submitLinks = new Option<FileInfo?>(
@@ -468,8 +464,8 @@ internal class Program
             { ArgumentHelpName = "FILE" };
         submitLinks.AddValidator(result =>
         {
-            cliArguments["apiOption"] = "submitLinks";
-            cliArguments["value"] = result.GetValueForOption(submitLinks).FullName;
+            cliArguments.Add("apiOption", "submitLinks");
+            cliArguments.Add("value", result.GetValueForOption(submitLinks).FullName);
         });
 
         Option<string?> verdictHash = new Option<string?>(
@@ -478,8 +474,8 @@ internal class Program
             { ArgumentHelpName = "HASH" };
         verdictHash.AddValidator(result =>
         {
-            cliArguments["apiOption"] = "verdictHash";
-            cliArguments["value"] = result.GetValueForOption(verdictHash).ToString();
+            cliArguments.Add("apiOption", "verdictHash");
+            cliArguments.Add("value", result.GetValueForOption(verdictHash).ToString());
         });
 
         Option<FileInfo?> verdictHashes = new Option<FileInfo?>(
@@ -488,8 +484,8 @@ internal class Program
             { ArgumentHelpName = "FILE" };
         verdictHashes.AddValidator(result =>
         {
-            cliArguments["apiOption"] = "verdictHashes";
-            cliArguments["value"] = result.GetValueForOption(verdictHashes).FullName;
+            cliArguments.Add("apiOption", "verdictHashes");
+            cliArguments.Add("value", result.GetValueForOption(verdictHashes).FullName);
         });
 
         Option<string?> verdictLink = new Option<string?>(
@@ -498,8 +494,8 @@ internal class Program
             { ArgumentHelpName = "LINK" };
         verdictLink.AddValidator(result =>
         {
-            cliArguments["apiOption"] = "verdictLink";
-            cliArguments["value"] = result.GetValueForOption(verdictLink).ToString();
+            cliArguments.Add("apiOption", "verdictLink");
+            cliArguments.Add("value", result.GetValueForOption(verdictLink).ToString());
         });
 
         Option<FileInfo?> verdictLinks = new Option<FileInfo?>(
@@ -508,8 +504,8 @@ internal class Program
             { ArgumentHelpName = "FILE" };
         verdictLinks.AddValidator(result =>
         {
-            cliArguments["apiOption"] = "verdictLinks";
-            cliArguments["value"] = result.GetValueForOption(verdictLinks).FullName;
+            cliArguments.Add("apiOption", "verdictLinks");
+            cliArguments.Add("value", result.GetValueForOption(verdictLinks).FullName);
         });
 
         Command? report = new Command("report", "Obtain the report for hash(es)/link(s)");
@@ -537,9 +533,9 @@ internal class Program
         rootCommand.AddCommand(report);
         rootCommand.AddCommand(submit);
         rootCommand.AddCommand(verdict);
-        if (rootCommand.Invoke(args) != 0) // Parse arguments.
-            return new Dictionary<string, string>(); // Invalid/incomplete command-line arguments.
-        return cliArguments; // Valid/complete command-line arguments.
+        rootCommand.Invoke(args);
+
+        return cliArguments; 
     }
 
     public static async Task<Dictionary<string, Dictionary<string, string>>>
