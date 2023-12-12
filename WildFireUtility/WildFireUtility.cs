@@ -11,12 +11,12 @@
 // is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
 // without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
 // PURPOSE. See the GNU General Public License for more details. You should have
-// received a copy ofthe GNU General Public License along with this program.
+// received a copy of the GNU General Public License along with this program.
 // If not, see <http://www.gnu.org/licenses/>.
 
 // Version    Date        Notes
 // 0.5        2023-12-11  The implemented API calls are release-quality. There are
-//                        some API calls and functionality that is incomplete.
+//                        some API calls and other functionality that are incomplete.
 
 
 /*
@@ -28,6 +28,7 @@ To-Do List
  - Add CLI option for different region URL
  - Add CLI option for using submit logfile to obtain verdicts
  - Add CLI option for using submit logfile to obtain reports
+ - Add the command-line output showing GPL info
 */
 
 // Install System.CommandLine from command prompt:
